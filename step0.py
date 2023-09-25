@@ -25,17 +25,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-m', '--method', type=str, default='AlexNet', help='AlexNet or ResNet')
 parser.add_argument('-o', '--output', type=str, default='logs/5cls/step0_2/')
 parser.add_argument('-e', '--epoch', type=int, default=20)
-parser.add_argument('-g', '--gpuid', type=int, default=0)
+# parser.add_argument('-g', '--gpuid', type=int, default=0)
+parser.add_argument('-g', '--gpuid', type=str, default='0')
 
 args = parser.parse_args()
 
 ##########################################################################
 # Config
 ##########################################################################
-os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpuid)
+# os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpuid)
+os.environ["CUDA_VISIBLE_DEVICES"] = args.gpuid
 seed = 0
 np.random.seed(seed)
 torch.manual_seed(seed)
+
 
 num_epochs = args.epoch
 output_dir = args.output
@@ -64,44 +67,68 @@ t.to(device)
 classifier0.to(device)
 softmax_criterion.to(device)
 
+
 ##########################################################################
 # Data
 ##########################################################################
 
-root = '/mnt/aoni04/jsakuma/data'
-mnist_train = set_paths(root, 'mnist', 'train')
-mnist_test = set_paths(root, 'mnist', 'test')
-mnist_m_train = set_paths(root, 'mnist-m', 'train')
-mnist_m_test = set_paths(root, 'mnist-m', 'test')
+# data must be divided into classes 
+root = '/home/jaesung/modeling/ZDDA/dataset/processed'
+source_train = set_paths(root, 'mnist', 'train')
+source_test = set_paths(root, 'mnist', 'test')
+target_train = set_paths(root, 'mnist-m', 'train')
+target_test = set_paths(root, 'mnist-m', 'test')
 
-(X_a_train, y_a_train), (X_b_train, y_b_train), (X_c_train, y_c_train),(X_d_train, y_d_train) = make_abcd_dataset(mnist_train, mnist_m_train, max_num=5000, cls_flg=False)
-(X_a_test, y_a_test), (X_b_test, y_b_test), (X_c_test, y_c_test), (X_d_test, y_d_test) = make_abcd_dataset(mnist_test, mnist_m_test, max_num=800, cls_flg=False)
+# the task of dividing the source data into 4 as shown in fig1
+# PIL image to numpy ... -> why?
+(X_a_train, y_a_train), (X_b_train, y_b_train), (X_c_train, y_c_train),(X_d_train, y_d_train) = make_abcd_dataset(source_train, target_train, max_num=5000, cls_flg=False)
+(X_a_test, y_a_test), (X_b_test, y_b_test), (X_c_test, y_c_test), (X_d_test, y_d_test) = make_abcd_dataset(source_test, target_test, max_num=800, cls_flg=False)
+
+
 
 # X_ab_train = np.concatenate([X_a_train, X_b_train])
 # y_ab_train = np.concatenate([y_a_train, y_b_train])
 # d_ab_train = np.concatenate([np.zeros(len(y_a_train)), np.ones(len(y_b_train))])
+
+# X_a_train : convert gray scale to RGB format
+tmp = []
+for i, v in enumerate(X_a_train):
+    tmp.append(cv2.cvtColor(v, cv2.COLOR_GRAY2RGB))
+X_a_train = np.asarray(tmp)
+
+# d_ac_train : contains information about domain
 X_ac_train = np.concatenate([X_a_train, X_c_train])
 y_ac_train = np.concatenate([y_a_train, y_c_train])
 d_ac_train = np.concatenate([np.zeros(len(y_a_train)), np.ones(len(y_c_train))])
 # X_ab_test = np.concatenate([X_a_test, X_b_test])
 # y_ab_test = np.concatenate([y_a_test, y_b_test])
 # d_ab_test = np.concatenate([np.zeros(len(y_a_test)), np.ones(len(y_b_test))])
+
+# X_c_train : convert gray scale to RGB format
+tmp = []
+for i, v in enumerate(X_a_test):
+    tmp.append(cv2.cvtColor(v, cv2.COLOR_GRAY2RGB))
+X_a_test = np.asarray(tmp)
+
+# d_ac_test = contains information about domain
 X_ac_test = np.concatenate([X_a_test, X_c_test])
 y_ac_test = np.concatenate([y_a_test, y_c_test])
 d_ac_test = np.concatenate([np.zeros(len(y_a_test)), np.ones(len(y_c_test))])
 
+# about domain
+d_a_train =  np.zeros(len(y_a_train)) # 0
+d_a_test = np.zeros(len(y_a_test)) # 0
+d_c_train = np.ones(len(y_c_train)) # 1
+d_c_test = np.ones(len(y_c_test)) # 1
 
-d_a_train =  np.zeros(len(y_a_train))
-d_a_test = np.zeros(len(y_a_test))
-d_c_train = np.ones(len(y_c_train))
-d_c_test = np.ones(len(y_c_test))
+d_b_train =  np.zeros(len(y_b_train)) # 0
+d_b_test = np.zeros(len(y_b_test)) # 0 
+d_d_train = np.ones(len(y_d_train)) # 1
+d_d_test = np.ones(len(y_d_test)) # 1
 
-d_b_train =  np.zeros(len(y_b_train))
-d_b_test = np.zeros(len(y_b_test))
-d_d_train = np.ones(len(y_d_train))
-d_d_test = np.ones(len(y_d_test))
 
 # transform
+# image normalization 
 transform_train = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
@@ -125,6 +152,7 @@ ds_b_train = MyDataset(X_b_train, y_b_train, d_b_train, transform_train)
 ds_c_train = MyDataset(X_c_train, y_c_train, d_c_train, transform_train)
 ds_d_train = MyDataset(X_d_train, y_d_train, d_d_train, transform_train)
 
+
 # ds_ab_test = MyDataset(X_ab_test, y_ab_test, d_ab_test, transform_test)
 ds_ac_test = MyDataset(X_ac_test, y_ac_test, d_ac_test, transform_test)
 ds_a_test = MyDataset(X_a_test, y_a_test, d_a_test, transform_test)
@@ -145,13 +173,13 @@ loader_ac_test = MyDataLoader(ds_ac_test, batch_size=batch_size, shuffle=False)
 loader_a_test = MyDataLoader(ds_a_test, batch_size=batch_size, shuffle=False)
 loader_b_test = MyDataLoader(ds_b_test, batch_size=batch_size, shuffle=False)
 loader_c_test = MyDataLoader(ds_c_test, batch_size=batch_size, shuffle=False)
-loader_d_test = MyDataLoader(ds_d_test, batch_size=batch_size, shuffle=False)
 
 # loader_pair_ac_train = PairDataLoader(ds_a_train, ds_c_train, batch_size=batch_size, shuffle=True)
 # loader_pair_bd_train = PairDataLoader(ds_b_train, ds_d_train, batch_size=batch_size, shuffle=True)
 
 # loader_pair_ac_test = PairDataLoader(ds_a_test, ds_c_test, batch_size=batch_size, shuffle=False)
 # loader_pair_bd_test = PairDataLoader(ds_b_test, ds_d_test, batch_size=batch_size, shuffle=False)
+
 
 ##########################################################################
 # Step 2
@@ -168,7 +196,7 @@ for epoch in range(num_epochs):
 
     for phase in ['train', 'val']:
         if phase == 'train':
-            train_loss, train_acc = step0_train(train_steps, t, classifier0,
+            train_loss, train_acc = step0_train(train_steps, t, classifier0, 
                                                 loader_ac_train, softmax_criterion,
                                                 device, optimizer)
             Loss[phase].append(train_loss)

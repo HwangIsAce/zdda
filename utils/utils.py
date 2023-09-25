@@ -6,64 +6,88 @@ import torch
 from torch.utils.data import Dataset
 from PIL import Image
 import glob
-
+import itertools
+import torchvision.transforms as transforms
+from datasets import load_from_disk
+from torchvision import transforms
+import cv2
 
 def set_paths(root, dataset_name, phase):
     keys = ['{}'.format(int(i)) for i in range(10)]
     values = [[] for _ in range(10)]
     path_dict = dict(zip(keys, values))
     for i in range(10):
-        imgs_path = sorted(glob.glob(os.path.join(root, dataset_name, phase, '{}'.format(int(i)), '*.png')))
-        path_dict['{}'.format(int(i))] += imgs_path
-        
+        imgs_path = sorted(glob.glob(os.path.join(root, dataset_name, phase, '{}'.format(int(i)))))
+        path_dict['{}'.format(int(i))] += imgs_path     
     return path_dict
 
 
 def make_abcd_dataset(source_dict, target_dict, d_list=[5, 6, 7, 8, 9], max_num=5000, cls_flg=False):
     X_a, y_a, X_b, y_b, X_c, y_c, X_d, y_d = [], [], [], [], [], [], [], []
     src_list = list(source_dict.values())
+
+    IMG_TRANSFORM = transforms.Compose([
+        transforms.Resize(size=(28,28))
+    ])
+
     for i, s in enumerate(src_list):
+
+        loaded_dataset = load_from_disk(s[0])
+        loaded_dataset_image = loaded_dataset['image']
+
         if not i in d_list: 
-            X_a.extend(s[:max_num])
+            X_a.extend(loaded_dataset_image[:max_num])
+            # X_a.extend(s[:max_num])
             y_a.extend([i for _ in range(max_num)])
         else:
-            X_b.extend(s[:max_num])
+            X_b.extend(loaded_dataset_image[:max_num])
+            # X_b.extend(s[:max_num])
             if cls_flg:
                 y_b.extend([i-5 for _ in range(max_num)])
             else:
                 y_b.extend([i for _ in range(max_num)])
             
-        
     tgt_list = list(target_dict.values())
     for i, t in enumerate(tgt_list):
+
+        loaded_dataset = load_from_disk(t[0])
+        loaded_dataset_image = loaded_dataset['image']
+        loaded_dataset_image = [IMG_TRANSFORM(v) for v in loaded_dataset_image]
+
         if not i in d_list: 
-            X_c.extend(t[:max_num])
+            X_c.extend(loaded_dataset_image[:max_num])
+            # X_c.extend(t[:max_num])
             y_c.extend([i for _ in range(max_num)])
         else:
-            X_d.extend(t[:max_num])
+            X_d.extend(loaded_dataset_image[:max_num])
+            # X_d.extend(t[:max_num])
             if cls_flg:
                 y_d.extend([i-5 for _ in range(max_num)])
             else:
                 y_d.extend([i for _ in range(max_num)])
-            
-    return (np.asarray(X_a), np.asarray(y_a)), (np.asarray(X_b), np.asarray(y_b)), (np.asarray(X_c), np.asarray(y_c)), (np.asarray(X_d), np.asarray(y_d))
 
+    return (np.asarray(X_a), np.asarray(y_a)), (np.asarray(X_b), np.asarray(y_b)), (np.asarray(X_c), np.asarray(y_c)), (np.asarray(X_d), np.asarray(y_d))
 
 class MyDataset(Dataset):
     def __init__(self, path, label, domain, transform):
-        assert len(path) == len(label)
+        assert len(path) == len(label) # when len(path) != len(label) error occur
         self.image_path = path
         self.label = torch.LongTensor(label)
         self.domain = torch.LongTensor(domain)
         self.transform = transform
-        
+
     def __getitem__(self, index):
         path = self.image_path[index]
-        image = Image.open(path).convert("RGB")
+
+        # image = Image.open(path).convert("RGB") # RGB  로 
+
+        image = Image.fromarray(path).convert("RGB")
+
         return self.transform(image), self.label[index], self.domain[index]
 
     def __len__(self):
         return len(self.image_path)
+ 
     
 
 class MyDataLoader(Dataset):

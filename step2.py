@@ -84,13 +84,13 @@ softmax_criterion.to(device)
 ##########################################################################
 
 root = '/mnt/aoni04/jsakuma/data'
-mnist_train = set_paths(root, 'mnist', 'train')
-mnist_test = set_paths(root, 'mnist', 'test')
-mnist_m_train = set_paths(root, 'mnist-m', 'train')
-mnist_m_test = set_paths(root, 'mnist-m', 'test')
+source_train = set_paths(root, 'mnist', 'train')
+source_test = set_paths(root, 'mnist', 'test')
+target_train = set_paths(root, 'mnist-m', 'train')
+target_test = set_paths(root, 'mnist-m', 'test')
 
-(X_a_train, y_a_train), (X_b_train, y_b_train), (X_c_train, y_c_train),(X_d_train, y_d_train) = make_abcd_dataset(mnist_train, mnist_m_train, max_num=5000, cls_flg=False)
-(X_a_test, y_a_test), (X_b_test, y_b_test), (X_c_test, y_c_test), (X_d_test, y_d_test) = make_abcd_dataset(mnist_test, mnist_m_test, max_num=800, cls_flg=False)
+(X_a_train, y_a_train), (X_b_train, y_b_train), (X_c_train, y_c_train),(X_d_train, y_d_train) = make_abcd_dataset(source_train, target_train, max_num=5000, cls_flg=False)
+(X_a_test, y_a_test), (X_b_test, y_b_test), (X_c_test, y_c_test), (X_d_test, y_d_test) = make_abcd_dataset(source_test, target_test, max_num=800, cls_flg=False)
 
 X_ac_train = np.concatenate([X_a_train, X_c_train])
 y_ac_train = np.concatenate([y_a_train, y_c_train])
