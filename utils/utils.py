@@ -12,61 +12,118 @@ from datasets import load_from_disk
 from torchvision import transforms
 import cv2
 
-def set_paths(root, dataset_name, phase):
-    keys = ['{}'.format(int(i)) for i in range(10)]
-    values = [[] for _ in range(10)]
-    path_dict = dict(zip(keys, values))
-    for i in range(10):
-        imgs_path = sorted(glob.glob(os.path.join(root, dataset_name, phase, '{}'.format(int(i)))))
-        path_dict['{}'.format(int(i))] += imgs_path     
-    return path_dict
+def transforms_pil(_image):
+    """pil transform mode, image"""
 
+    _image["image"] = [image.convert("RGB").resize((28,28)) for image in _image["image"]]
+    return _image
 
-def make_abcd_dataset(source_dict, target_dict, d_list=[5, 6, 7, 8, 9], max_num=5000, cls_flg=False):
+def pil_to_numpy(source, target, train_or_test): 
+
+    """input type -> PIL """
+
     X_a, y_a, X_b, y_b, X_c, y_c, X_d, y_d = [], [], [], [], [], [], [], []
-    src_list = list(source_dict.values())
+    max_num = 0    
 
-    IMG_TRANSFORM = transforms.Compose([
-        transforms.Resize(size=(28,28))
-    ])
+    # pil to numpy after labeling
+    if train_or_test == 'train':
+        
+        max_num = 5000
+        for i in range(5):
+            X_a.extend(source.filter(lambda x: x['label']==i)[0:max_num]['image'])
+            y_a.extend(source.filter(lambda x: x['label']==i)[0:max_num]['label'])
 
-    for i, s in enumerate(src_list):
+            X_c.extend(target.filter(lambda x: x['label']==i)[0:max_num]['image'])
+            y_c.extend(target.filter(lambda x: x['label']==i)[0:max_num]['label'])
 
-        loaded_dataset = load_from_disk(s[0])
-        loaded_dataset_image = loaded_dataset['image']
+        for i in range(5,10):
+            X_b.extend(source.filter(lambda x: x['label']==i)[0:max_num
+            ]['image'])
+            y_b.extend(source.filter(lambda x: x['label']==i)[0:max_num]['label'])
 
-        if not i in d_list: 
-            X_a.extend(loaded_dataset_image[:max_num])
-            # X_a.extend(s[:max_num])
-            y_a.extend([i for _ in range(max_num)])
-        else:
-            X_b.extend(loaded_dataset_image[:max_num])
-            # X_b.extend(s[:max_num])
-            if cls_flg:
-                y_b.extend([i-5 for _ in range(max_num)])
-            else:
-                y_b.extend([i for _ in range(max_num)])
-            
-    tgt_list = list(target_dict.values())
-    for i, t in enumerate(tgt_list):
+            X_d.extend(target.filter(lambda x: x['label']==i)[0:max_num]['image'])
+            y_d.extend(target.filter(lambda x: x['label']==i)[0:max_num]['label'])
 
-        loaded_dataset = load_from_disk(t[0])
-        loaded_dataset_image = loaded_dataset['image']
-        loaded_dataset_image = [IMG_TRANSFORM(v) for v in loaded_dataset_image]
 
-        if not i in d_list: 
-            X_c.extend(loaded_dataset_image[:max_num])
-            # X_c.extend(t[:max_num])
-            y_c.extend([i for _ in range(max_num)])
-        else:
-            X_d.extend(loaded_dataset_image[:max_num])
-            # X_d.extend(t[:max_num])
-            if cls_flg:
-                y_d.extend([i-5 for _ in range(max_num)])
-            else:
-                y_d.extend([i for _ in range(max_num)])
+    elif train_or_test == 'test':
+        
+        max_num = 800
+        for i in range(5):
+            X_a.extend(source.filter(lambda x: x['label']==i)[0:max_num]['image'])
+            y_a.extend(source.filter(lambda x: x['label']==i)[0:max_num]['label'])
+
+            X_c.extend(target.filter(lambda x: x['label']==i)[0:max_num]['image'])
+            y_c.extend(target.filter(lambda x: x['label']==i)[0:max_num]['label'])
+
+        for i in range(5,10):
+            X_b.extend(source.filter(lambda x: x['label']==i)[0:max_num
+            ]['image'])
+            y_b.extend(source.filter(lambda x: x['label']==i)[0:max_num]['label'])
+
+            X_d.extend(target.filter(lambda x: x['label']==i)[0:max_num]['image'])
+            y_d.extend(target.filter(lambda x: x['label']==i)[0:max_num]['label'])
 
     return (np.asarray(X_a), np.asarray(y_a)), (np.asarray(X_b), np.asarray(y_b)), (np.asarray(X_c), np.asarray(y_c)), (np.asarray(X_d), np.asarray(y_d))
+
+
+# def set_paths(root, dataset_name, phase):
+#       """input type -> png"""
+#     keys = ['{}'.format(int(i)) for i in range(10)]
+#     values = [[] for _ in range(10)]
+#     path_dict = dict(zip(keys, values))
+#     for i in range(10):
+#         imgs_path = sorted(glob.glob(os.path.join(root, dataset_name, phase, '{}'.format(int(i)))))
+#         path_dict['{}'.format(int(i))] += imgs_path     
+#     return path_dict
+
+
+# def make_abcd_dataset(source_dict, target_dict, d_list=[5, 6, 7, 8, 9], max_num=5000, cls_flg=False):
+
+#       """input type -> png"""
+#     X_a, y_a, X_b, y_b, X_c, y_c, X_d, y_d = [], [], [], [], [], [], [], []
+#     src_list = list(source_dict.values())
+
+#     IMG_TRANSFORM = transforms.Compose([
+#         transforms.Resize(size=(28,28))
+#     ])
+
+#     for i, s in enumerate(src_list):
+
+#         loaded_dataset = load_from_disk(s[0])
+#         loaded_dataset_image = loaded_dataset['image']
+
+#         if not i in d_list: 
+#             X_a.extend(loaded_dataset_image[:max_num])
+#             # X_a.extend(s[:max_num])
+#             y_a.extend([i for _ in range(max_num)])
+#         else:
+#             X_b.extend(loaded_dataset_image[:max_num])
+#             # X_b.extend(s[:max_num])
+#             if cls_flg:
+#                 y_b.extend([i-5 for _ in range(max_num)])
+#             else:
+#                 y_b.extend([i for _ in range(max_num)])
+            
+#     tgt_list = list(target_dict.values())
+#     for i, t in enumerate(tgt_list):
+
+#         loaded_dataset = load_from_disk(t[0])
+#         loaded_dataset_image = loaded_dataset['image']
+#         loaded_dataset_image = [IMG_TRANSFORM(v) for v in loaded_dataset_image]
+
+#         if not i in d_list: 
+#             X_c.extend(loaded_dataset_image[:max_num])
+#             # X_c.extend(t[:max_num])
+#             y_c.extend([i for _ in range(max_num)])
+#         else:
+#             X_d.extend(loaded_dataset_image[:max_num])
+#             # X_d.extend(t[:max_num])
+#             if cls_flg:
+#                 y_d.extend([i-5 for _ in range(max_num)])
+#             else:
+#                 y_d.extend([i for _ in range(max_num)])
+
+#     return (np.asarray(X_a), np.asarray(y_a)), (np.asarray(X_b), np.asarray(y_b)), (np.asarray(X_c), np.asarray(y_c)), (np.asarray(X_d), np.asarray(y_d))
 
 class MyDataset(Dataset):
     def __init__(self, path, label, domain, transform):

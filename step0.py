@@ -16,7 +16,8 @@ import torchvision
 from torchvision import datasets, transforms, models
 from torch.utils.data import DataLoader, Dataset
 
-from utils.utils import set_paths, make_abcd_dataset, MyDataset, MyDataLoader, PairDataLoader
+# from utils.utils import set_paths, make_abcd_dataset, MyDataset, MyDataLoader, PairDataLoader
+from utils.utils import MyDataLoader, MyDataset, PairDataLoader
 from utils.trainer import step0_train, step0_val
 from models.models import build_CNN, build_Classifier
 
@@ -72,29 +73,29 @@ softmax_criterion.to(device)
 # Data
 ##########################################################################
 
-# data must be divided into classes 
-root = '/home/jaesung/modeling/ZDDA/dataset/processed'
-source_train = set_paths(root, 'mnist', 'train')
-source_test = set_paths(root, 'mnist', 'test')
-target_train = set_paths(root, 'mnist-m', 'train')
-target_test = set_paths(root, 'mnist-m', 'test')
+from datasets import load_dataset
+from utils.utils import pil_to_numpy, transforms_pil
 
-# the task of dividing the source data into 4 as shown in fig1
-# PIL image to numpy ... -> why?
-(X_a_train, y_a_train), (X_b_train, y_b_train), (X_c_train, y_c_train),(X_d_train, y_d_train) = make_abcd_dataset(source_train, target_train, max_num=5000, cls_flg=False)
-(X_a_test, y_a_test), (X_b_test, y_b_test), (X_c_test, y_c_test), (X_d_test, y_d_test) = make_abcd_dataset(source_test, target_test, max_num=800, cls_flg=False)
+source_data = load_dataset('mnist')
+target_data = load_dataset("Mike0307/MNIST-M")
 
+source_data = source_data.map(transforms_pil, batched=True)
+target_data = target_data.map(transforms_pil, batched=True)
+
+source_train = source_data['train']
+source_test = source_data['test']
+target_train = target_data['train']
+target_test = target_data['test']
+
+
+(X_a_train, y_a_train), (X_b_train, y_b_train), (X_c_train, y_c_train),(X_d_train, y_d_train) = pil_to_numpy(source_train, target_train, 'train')
+(X_a_test, y_a_test), (X_b_test, y_b_test), (X_c_test, y_c_test), (X_d_test, y_d_test) = pil_to_numpy(source_test, target_test, 'test')
 
 
 # X_ab_train = np.concatenate([X_a_train, X_b_train])
 # y_ab_train = np.concatenate([y_a_train, y_b_train])
 # d_ab_train = np.concatenate([np.zeros(len(y_a_train)), np.ones(len(y_b_train))])
 
-# X_a_train : convert gray scale to RGB format
-tmp = []
-for i, v in enumerate(X_a_train):
-    tmp.append(cv2.cvtColor(v, cv2.COLOR_GRAY2RGB))
-X_a_train = np.asarray(tmp)
 
 # d_ac_train : contains information about domain
 X_ac_train = np.concatenate([X_a_train, X_c_train])
@@ -103,12 +104,6 @@ d_ac_train = np.concatenate([np.zeros(len(y_a_train)), np.ones(len(y_c_train))])
 # X_ab_test = np.concatenate([X_a_test, X_b_test])
 # y_ab_test = np.concatenate([y_a_test, y_b_test])
 # d_ab_test = np.concatenate([np.zeros(len(y_a_test)), np.ones(len(y_b_test))])
-
-# X_c_train : convert gray scale to RGB format
-tmp = []
-for i, v in enumerate(X_a_test):
-    tmp.append(cv2.cvtColor(v, cv2.COLOR_GRAY2RGB))
-X_a_test = np.asarray(tmp)
 
 # d_ac_test = contains information about domain
 X_ac_test = np.concatenate([X_a_test, X_c_test])
@@ -180,7 +175,7 @@ loader_c_test = MyDataLoader(ds_c_test, batch_size=batch_size, shuffle=False)
 # loader_pair_ac_test = PairDataLoader(ds_a_test, ds_c_test, batch_size=batch_size, shuffle=False)
 # loader_pair_bd_test = PairDataLoader(ds_b_test, ds_d_test, batch_size=batch_size, shuffle=False)
 
-
+import IPython; IPython.embed(color="Linux"); exit(1)
 ##########################################################################
 # Step 2
 ##########################################################################
